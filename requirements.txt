@@ -3,7 +3,5 @@ librosa
 numpy
 scipy
 soundfile
-pymongo
-yt-dlp
 spotipy
 ffmpeg 
