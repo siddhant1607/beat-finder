@@ -1,18 +1,16 @@
 import streamlit as st
 import soundfile as sf
-import io
 import numpy as np
-import librosa
+import re
 from collections import defaultdict
 import pickle
-import re
 import os
 import requests
 
 from fingerprinting import process_segment, extract_peaks_bandwise, generate_pair_hashes
 from spotify_util import get_spotify_tracks  # to get album art & spotify link
 
-LOCAL_DB_PATH = "fingerprint_db.pkl"  # in current directory
+LOCAL_DB_PATH = "fingerprint_db.pkl"
 GOOGLE_DRIVE_FILE_ID = "1Nn4VWd97KENZRggSIEvZJhB2AoWDnRXe"
 GOOGLE_DRIVE_URL = f"https://drive.google.com/uc?export=download&id={GOOGLE_DRIVE_FILE_ID}"
 
@@ -58,7 +56,6 @@ fingerprint_db = load_fingerprint_db()
 st.title("🎤 BeatFinder Demo")
 st.write("Record audio and try to recognize it from the song database!")
 
-# Audio input
 audio_bytes = st.audio_input("Record a 10s audio sample (or upload WAV)", sample_rate=16000)
 
 def get_song_info(song_id, client_id, client_secret, cache={}):
@@ -75,42 +72,45 @@ def get_song_info(song_id, client_id, client_secret, cache={}):
             return track
     return None
 
+def improved_match_score(pair_hashes, fingerprint_db, threshold=0.9):
+    offset_diffs = defaultdict(lambda: defaultdict(int))  # song -> offset -> count
+    for h, t in pair_hashes:
+        entries = fingerprint_db.get(h, [])
+        for song, song_time in entries:
+            offset = round(song_time - t, 2)
+            offset_diffs[song][offset] += 1
+
+    match_scores = {}
+    for song, offsets in offset_diffs.items():
+        total = sum(offsets.values())
+        best_offset = max(offsets.values())
+        confidence = best_offset / total if total > 0 else 0
+        if best_offset >= 300 and confidence >= threshold:
+            match_scores[song] = (best_offset, confidence)
+    return match_scores
+
 if audio_bytes is not None:
     y, sr = sf.read(audio_bytes)
-
     S_mag = process_segment(y, sr)
     peaks = extract_peaks_bandwise(S_mag)
     pair_hashes = generate_pair_hashes(peaks)
     st.write(f"Fingerprinted {len(pair_hashes)} pairs.")
 
     if st.button("Find best match"):
-        score = defaultdict(int)
-        offset_diffs = defaultdict(lambda: defaultdict(int))
-        for h, t in pair_hashes:
-            entries = fingerprint_db.get(h, [])
-            for song, song_time in entries:
-                offset_diff = round(song_time - t, 2)
-                offset_diffs[song][offset_diff] += 1
+        matches = improved_match_score(pair_hashes, fingerprint_db, threshold=0.9)
 
-        best_matches = {}
-        for song, offsets in offset_diffs.items():
-            best_offset, best_count = max(offsets.items(), key=lambda x: x[1])
-            best_matches[song] = best_count
-
-        threshold = 10
-        filtered = {k: v for k, v in best_matches.items() if v >= threshold}
-
-        if filtered:
-            top5 = sorted(filtered.items(), key=lambda x: x[1], reverse=True)[:5]
-            total_matches = sum(count for _, count in top5)
+        if matches:
             st.write("Top matches:")
-            for i, (song_id, count) in enumerate(top5, 1):
-                percent = (count / total_matches) * 100 if total_matches > 0 else 0
+            sorted_matches = sorted(matches.items(), key=lambda x: x[1][0], reverse=True)[:5]
+            total_hashes = sum(match[0] for _, match in sorted_matches)
+            for i, (song_id, (count, confidence)) in enumerate(sorted_matches, 1):
+                percent = (count / total_hashes) * 100 if total_hashes > 0 else 0
                 track = get_song_info(song_id, st.secrets["CLIENT_ID"], st.secrets["CLIENT_SECRET"])
                 if track:
                     st.markdown(f"### {i}. {track['title']} - {track['artist']}")
                     st.write(f"Matching hashes: {count}")
-                    st.write(f"Match confidence: {percent:.1f}%")
+                    st.write(f"Match confidence: {confidence:.2%}")
+                    st.write(f"Match percentage (relative): {percent:.1f}%")
                     if 'album' in track and 'images' in track['album']:
                         img_url = track['album']['images'][0]['url']
                         st.image(img_url, width=150)
@@ -118,6 +118,7 @@ if audio_bytes is not None:
                         st.markdown(f"[Listen on Spotify]({track['external_urls']['spotify']})")
                 else:
                     st.write(f"{i}. {song_id} - {count} matching hashes (track info not found)")
-                    st.write(f"Match confidence: {percent:.1f}%")
+                    st.write(f"Match confidence: {confidence:.2%}")
+                    st.write(f"Match percentage (relative): {percent:.1f}%")
         else:
             st.write("No matches found above threshold.")
