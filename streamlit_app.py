@@ -12,7 +12,7 @@ import requests
 from fingerprinting import process_segment, extract_peaks_bandwise, generate_pair_hashes
 from spotify_util import get_spotify_tracks  # to get album art & spotify link
 
-LOCAL_DB_PATH = "/workspaces/beat-finder/fingerprint_db.pkl"
+LOCAL_DB_PATH = "fingerprint_db.pkl"  # in current directory
 GOOGLE_DRIVE_FILE_ID = "1Nn4VWd97KENZRggSIEvZJhB2AoWDnRXe"
 GOOGLE_DRIVE_URL = f"https://drive.google.com/uc?export=download&id={GOOGLE_DRIVE_FILE_ID}"
 
