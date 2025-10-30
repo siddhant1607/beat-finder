@@ -10,13 +10,25 @@ import re
 from fingerprinting import process_segment, extract_peaks_bandwise, generate_pair_hashes
 from spotify_util import get_spotify_tracks  # to get album art & spotify link
 
-# Constants and config - replace paths as needed
-FINGERPRINT_DB_PATH = "/workspaces/beat-finder/fingerprint_db.pkl"
+LOCAL_DB_PATH = "/workspaces/beat-finder/fingerprint_db.pkl"
+GOOGLE_DRIVE_FILE_ID = "1Nn4VWd97KENZRggSIEvZJhB2AoWDnRXe"  
+GOOGLE_DRIVE_URL = f"https://drive.google.com/uc?export=download&id={GOOGLE_DRIVE_FILE_ID}"
 
-# Load fingerprint db once (cache for session)
-@st.cache(allow_output_mutation=True)
+def download_fingerprint_db():
+    if not os.path.exists(LOCAL_DB_PATH):
+        r = requests.get(GOOGLE_DRIVE_URL)
+        r.raise_for_status()
+        with open(LOCAL_DB_PATH, "wb") as f:
+            f.write(r.content)
+        st.write("Downloaded fingerprint database from Google Drive.")
+
 def load_fingerprint_db():
-    with open(FINGERPRINT_DB_PATH, "rb") as f:
+    # Download from Google Drive if running in deployed/cloud environment
+    # For example, use a simple env var or check for local run
+    if not os.path.exists(LOCAL_DB_PATH):
+        st.write("Fingerprint DB not present locally, downloading...")
+        download_fingerprint_db()
+    with open(LOCAL_DB_PATH, "rb") as f:
         return pickle.load(f)
 
 fingerprint_db = load_fingerprint_db()
