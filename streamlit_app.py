@@ -107,17 +107,25 @@ if audio_bytes is not None:
             for i, (song_id, count) in enumerate(top5, 1):
                 percent = (count / total_matches) * 100 if total_matches > 0 else 0
                 track = get_song_info(song_id, st.secrets["CLIENT_ID"], st.secrets["CLIENT_SECRET"])
-                if track:
-                    st.markdown(f"### {i}. {track['title']} - {track['artist']}")
-                    st.write(f"Matching hashes: {count}")
-                    st.write(f"Match confidence: {percent:.1f}%")
-                    if 'album' in track and 'images' in track['album']:
-                        img_url = track['album']['images'][0]['url']
-                        st.image(img_url, width=150)
-                    if 'external_urls' in track and 'spotify' in track['external_urls']:
-                        st.markdown("Listen on Spotify")
+
+                # Highlight top song
+                if i == 1:
+                    st.markdown(f"<div style='background-color:#FFD700; padding:10px; border-radius:5px;'>", unsafe_allow_html=True)
+                    st.markdown(f"### **{i}. {track['title']} - {track['artist']}**")
                 else:
-                    st.write(f"{i}. {song_id} - {count} matching hashes (track info not found)")
-                    st.write(f"Match confidence: {percent:.1f}%")
+                    if track:
+                        st.markdown(f"### {i}. {track['title']} - {track['artist']}")
+
+                st.write(f"Matching hashes: {count}")
+                st.write(f"Match confidence: {percent:.1f}%")
+                if track and 'album' in track and 'images' in track['album']:
+                    img_url = track['album']['images'][0]['url']
+                    st.image(img_url, width=150)
+                if track and 'external_urls' in track and 'spotify' in track['external_urls']:
+                    st.markdown("Listen on Spotify")
+
+                if i == 1:
+                    st.markdown("</div>", unsafe_allow_html=True)
         else:
             st.write("No matches found above threshold.")
+
