@@ -1,7 +1,6 @@
 streamlit
-librosa
-numpy
-scipy
 soundfile
+numpy
+librosa
+scipy
 spotipy
-ffmpeg 
