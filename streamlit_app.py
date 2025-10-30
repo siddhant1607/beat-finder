@@ -1,18 +1,15 @@
 import streamlit as st
 import soundfile as sf
-import io
-import numpy as np
-import librosa
 from collections import defaultdict
 import pickle
 import re
 import os
 import requests
 
-from fingerprinting import process_segment, extract_peaks_bandwise, generate_pair_hashes
-from spotify_util import get_spotify_tracks  # to get album art & spotify link
+from fingerprinting import process_segment, extract_peaks_bandwise, generate_pair_hashes  # updated hashing
 
-LOCAL_DB_PATH = "fingerprint_db.pkl"  # in current directory
+
+LOCAL_DB_PATH = "fingerprint_db.pkl"
 GOOGLE_DRIVE_FILE_ID = "1Nn4VWd97KENZRggSIEvZJhB2AoWDnRXe"
 GOOGLE_DRIVE_URL = f"https://drive.google.com/uc?export=download&id={GOOGLE_DRIVE_FILE_ID}"
 
@@ -26,7 +23,7 @@ def save_response_content(response, destination):
     CHUNK_SIZE = 32768
     with open(destination, "wb") as f:
         for chunk in response.iter_content(CHUNK_SIZE):
-            if chunk:  # filter out keep-alive new chunks
+            if chunk:
                 f.write(chunk)
 
 def download_file_from_google_drive(id, destination):
@@ -58,7 +55,6 @@ fingerprint_db = load_fingerprint_db()
 st.title("🎤 BeatFinder Demo")
 st.write("Record audio and try to recognize it from the song database!")
 
-# Audio input
 audio_bytes = st.audio_input("Record a 10s audio sample (or upload WAV)", sample_rate=16000)
 
 def get_song_info(song_id, client_id, client_secret, cache={}):
@@ -77,10 +73,9 @@ def get_song_info(song_id, client_id, client_secret, cache={}):
 
 if audio_bytes is not None:
     y, sr = sf.read(audio_bytes)
-
     S_mag = process_segment(y, sr)
     peaks = extract_peaks_bandwise(S_mag)
-    pair_hashes = generate_pair_hashes(peaks)
+    pair_hashes = generate_pair_hashes(peaks)  # uses updated hashing
     st.write(f"Fingerprinted {len(pair_hashes)} pairs.")
 
     if st.button("Find best match"):
