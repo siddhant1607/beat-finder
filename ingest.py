@@ -72,6 +72,6 @@ def process_playlist(playlist_url, client_id, client_secret):
 
 client_id = os.getenv("CLIENT_ID")
 client_secret = os.getenv("CLIENT_SECRET")
-playlist_url = "https://open.spotify.com/playlist/7AFzTreiVAZpYU8wYW3fp9?si=yDRAo4hnR5-TA4OXg70d9A"
+playlist_url = "https://open.spotify.com/playlist/7AFzTreiVAZpYU8wYW3fp9?si=2uheFNb4Q7a-LDcWcufb5g"
 
 process_playlist(playlist_url, client_id, client_secret)

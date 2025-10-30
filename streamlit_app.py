@@ -31,10 +31,8 @@ def get_song_info(song_id, client_id, client_secret, cache={}):
     # Cache API results for performance
     if song_id in cache:
         return cache[song_id]
-
-    # Reverse song_id back to title and artist if possible (based on your sanitize logic)
     # Here we assume a function to get playlist tracks info is available from spotify_util
-    playlist_url = "YOUR_SPOTIFY_PLAYLIST_URL"  # put your playlist url here
+    playlist_url = "https://open.spotify.com/playlist/7AFzTreiVAZpYU8wYW3fp9?si=AvcUBT7ZTfyKhMBMepcmKw"
     tracks = get_spotify_tracks(playlist_url, client_id, client_secret)
     for track in tracks:
         title = track.get('title', '')
@@ -47,7 +45,7 @@ def get_song_info(song_id, client_id, client_secret, cache={}):
 
 if audio_bytes is not None:
     # Decode uploaded audio bytes
-    y, sr = sf.read(io.BytesIO(audio_bytes))
+    y, sr = sf.read(audio_bytes)
 
     # Fingerprint
     S_mag = process_segment(y, sr)
@@ -75,13 +73,16 @@ if audio_bytes is not None:
         filtered = {k: v for k, v in best_matches.items() if v >= threshold}
 
         if filtered:
-            top3 = sorted(filtered.items(), key=lambda x: x[1], reverse=True)[:3]
+            top5 = sorted(filtered.items(), key=lambda x: x[1], reverse=True)[:5]
+            total_matches = sum(count for _, count in top5)
             st.write("Top matches:")
-            for i, (song_id, count) in enumerate(top3, 1):
+            for i, (song_id, count) in enumerate(top5, 1):
+                percent = (count / total_matches) * 100 if total_matches > 0 else 0
                 track = get_song_info(song_id, st.secrets["CLIENT_ID"], st.secrets["CLIENT_SECRET"])
                 if track:
                     st.markdown(f"### {i}. {track['title']} - {track['artist']}")
                     st.write(f"Matching hashes: {count}")
+                    st.write(f"Match confidence: {percent:.1f}%")
                     if 'album' in track and 'images' in track['album']:
                         img_url = track['album']['images'][0]['url']
                         st.image(img_url, width=150)
@@ -89,6 +90,6 @@ if audio_bytes is not None:
                         st.markdown(f"[Listen on Spotify]({track['external_urls']['spotify']})")
                 else:
                     st.write(f"{i}. {song_id} - {count} matching hashes (track info not found)")
+                    st.write(f"Match confidence: {percent:.1f}%")
         else:
             st.write("No matches found above threshold.")
-
