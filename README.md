@@ -84,7 +84,7 @@ git status
 2. Stage all changes for commit:
 
 ```
-git add
+git add .
 ```
 
 3. Commit the changes with a meaningful message:
