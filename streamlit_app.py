@@ -7,6 +7,7 @@ from collections import defaultdict
 import pickle
 import re
 import os
+import requests
 
 from fingerprinting import process_segment, extract_peaks_bandwise, generate_pair_hashes
 from spotify_util import get_spotify_tracks  # to get album art & spotify link
