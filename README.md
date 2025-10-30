@@ -137,6 +137,44 @@ git pull origin main
 
 ---
 
+## How to upload pickle file to Repository using LFS?
+
+1. Run the following commands in your Codespaces terminal to install LFS:
+
+```
+curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash
+sudo apt-get install git-lfs
+git lfs install
+```
+2. Run:
+
+```
+git lfs install
+```
+
+3. Then, inside your repo directory, track the pickle file with:
+
+```
+git lfs track "fingerprint_db.pkl"
+```
+
+4. Add the .gitattributes file Git LFS creates:
+
+```
+git add .gitattributes
+git commit -m "Add Git LFS tracking for fingerprint pickle file"
+```
+
+5. Finally, add your large pickle file and push as usual:
+
+```
+git add fingerprint_db.pkl
+git commit -m "Add fingerprint DB pickle file with Git LFS"
+git push origin main
+```
+
+
+---
 ## Acknowledgements
 
 This project is inspired by classic audio fingerprinting research and the Shazam music recognition algorithm. Thanks to open-source libraries like Streamlit, librosa, and Spotipy.
