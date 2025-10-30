@@ -39,8 +39,10 @@ pip install -r requirements.txt
 
 3. Create a `.streamlit/secrets.toml` file with your Spotify API credentials:
 
+```
 CLIENT_ID = "your_spotify_client_id"
 CLIENT_SECRET = "your_spotify_client_secret"
+```
 
 For the Environment variables in You can verify by running:
 
