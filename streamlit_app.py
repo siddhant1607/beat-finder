@@ -13,20 +13,40 @@ from fingerprinting import process_segment, extract_peaks_bandwise, generate_pai
 from spotify_util import get_spotify_tracks  # to get album art & spotify link
 
 LOCAL_DB_PATH = "/workspaces/beat-finder/fingerprint_db.pkl"
-GOOGLE_DRIVE_FILE_ID = "1Nn4VWd97KENZRggSIEvZJhB2AoWDnRXe"  
+GOOGLE_DRIVE_FILE_ID = "1Nn4VWd97KENZRggSIEvZJhB2AoWDnRXe"
 GOOGLE_DRIVE_URL = f"https://drive.google.com/uc?export=download&id={GOOGLE_DRIVE_FILE_ID}"
 
+def get_confirm_token(response):
+    for key, value in response.cookies.items():
+        if key.startswith('download_warning'):
+            return value
+    return None
+
+def save_response_content(response, destination):
+    CHUNK_SIZE = 32768
+    with open(destination, "wb") as f:
+        for chunk in response.iter_content(CHUNK_SIZE):
+            if chunk:  # filter out keep-alive new chunks
+                f.write(chunk)
+
+def download_file_from_google_drive(id, destination):
+    URL = "https://docs.google.com/uc?export=download"
+    session = requests.Session()
+    response = session.get(URL, params={'id': id}, stream=True)
+    token = get_confirm_token(response)
+    if token:
+        params = {'id': id, 'confirm': token}
+        response = session.get(URL, params=params, stream=True)
+    save_response_content(response, destination)
+    st.write("Downloaded fingerprint database from Google Drive.")
+
 def download_fingerprint_db():
-    if not os.path.exists(LOCAL_DB_PATH):
-        r = requests.get(GOOGLE_DRIVE_URL)
-        r.raise_for_status()
-        with open(LOCAL_DB_PATH, "wb") as f:
-            f.write(r.content)
-        st.write("Downloaded fingerprint database from Google Drive.")
+    directory = os.path.dirname(LOCAL_DB_PATH)
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    download_file_from_google_drive(GOOGLE_DRIVE_FILE_ID, LOCAL_DB_PATH)
 
 def load_fingerprint_db():
-    # Download from Google Drive if running in deployed/cloud environment
-    # For example, use a simple env var or check for local run
     if not os.path.exists(LOCAL_DB_PATH):
         st.write("Fingerprint DB not present locally, downloading...")
         download_fingerprint_db()
@@ -42,10 +62,8 @@ st.write("Record audio and try to recognize it from the song database!")
 audio_bytes = st.audio_input("Record a 10s audio sample (or upload WAV)", sample_rate=16000)
 
 def get_song_info(song_id, client_id, client_secret, cache={}):
-    # Cache API results for performance
     if song_id in cache:
         return cache[song_id]
-    # Here we assume a function to get playlist tracks info is available from spotify_util
     playlist_url = "https://open.spotify.com/playlist/7AFzTreiVAZpYU8wYW3fp9?si=AvcUBT7ZTfyKhMBMepcmKw"
     tracks = get_spotify_tracks(playlist_url, client_id, client_secret)
     for track in tracks:
@@ -58,19 +76,16 @@ def get_song_info(song_id, client_id, client_secret, cache={}):
     return None
 
 if audio_bytes is not None:
-    # Decode uploaded audio bytes
     y, sr = sf.read(audio_bytes)
 
-    # Fingerprint
     S_mag = process_segment(y, sr)
     peaks = extract_peaks_bandwise(S_mag)
     pair_hashes = generate_pair_hashes(peaks)
     st.write(f"Fingerprinted {len(pair_hashes)} pairs.")
 
     if st.button("Find best match"):
-        # Matching
         score = defaultdict(int)
-        offset_diffs = defaultdict(lambda: defaultdict(int))  # for time offset filtering
+        offset_diffs = defaultdict(lambda: defaultdict(int))
         for h, t in pair_hashes:
             entries = fingerprint_db.get(h, [])
             for song, song_time in entries:
@@ -82,7 +97,6 @@ if audio_bytes is not None:
             best_offset, best_count = max(offsets.items(), key=lambda x: x[1])
             best_matches[song] = best_count
 
-        # Filter results by threshold
         threshold = 10
         filtered = {k: v for k, v in best_matches.items() if v >= threshold}
 
