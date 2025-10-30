@@ -98,6 +98,12 @@ git commit -m "From Codespaces"
 git push origin main
 ```
 
+5. To get the latest changes from your remote repository into your Codespaces environment, you need to pull them using Git. Here’s the command you should use (run it inside your Codespace terminal):
+
+```
+git pull origin main
+```
+
 ---
 
 ## Acknowledgements
