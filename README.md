@@ -42,6 +42,35 @@ pip install -r requirements.txt
 CLIENT_ID = "your_spotify_client_id"
 CLIENT_SECRET = "your_spotify_client_secret"
 
+For the Environment variables in You can verify by running:
+
+a. Open the terminal
+b. To edit .bashrc
+
+```
+nano ~/.bashrc
+```
+c. Write the following at the end of the file. 
+
+```
+export CLIENT_ID='your_spotify_client_id'
+export CLIENT_SECRET='your_spotify_client_secret'
+```
+
+To save the file, click Ctrl+O, then Enter, then Ctrl+X to close the file. 
+
+d. Reload the .bashrc using 
+
+```
+source ~/.bashrc
+```
+e. Check the Environment variables using 
+
+```
+echo $CLIENT_ID
+echo $CLIENT_SECRET
+```
+
 4. Run the Streamlit app:
 
 ```
