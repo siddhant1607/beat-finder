@@ -10,7 +10,7 @@ from fingerprinting import process_segment, extract_peaks_bandwise, generate_pai
 from spotify_util import get_spotify_tracks  # to get album art & spotify link
 
 # Constants and config - replace paths as needed
-FINGERPRINT_DB_PATH = "/content/drive/MyDrive/fingerprint_db.pkl"
+FINGERPRINT_DB_PATH = "/workspaces/beat-finder/fingerprint_db.pkl"
 
 # Load fingerprint db once (cache for session)
 @st.cache(allow_output_mutation=True)
@@ -21,7 +21,7 @@ def load_fingerprint_db():
 fingerprint_db = load_fingerprint_db()
 
 st.title("🎤 BeatFinder Demo")
-st.write("Record audio and try to recognize it from your 20-song database!")
+st.write("Record audio and try to recognize it from the song database!")
 
 # Audio input
 audio_bytes = st.audio_input("Record a 10s audio sample (or upload WAV)", sample_rate=16000)

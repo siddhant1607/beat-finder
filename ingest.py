@@ -11,6 +11,7 @@ def load_fingerprint_db(db_path):
         print("Creating new fingerprint database.")
     return fingerprint_db
 
+
 def save_fingerprint_db(db_path, fingerprint_db):
     with open(db_path, "wb") as f:
         pickle.dump(fingerprint_db, f)
