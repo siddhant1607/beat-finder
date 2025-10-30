@@ -33,7 +33,9 @@ BeatFinder is a music recognition web app built with Streamlit. It allows you to
 
 2. Install dependencies:
 
+```
 pip install -r requirements.txt
+```
 
 3. Create a `.streamlit/secrets.toml` file with your Spotify API credentials:
 
@@ -42,7 +44,9 @@ CLIENT_SECRET = "your_spotify_client_secret"
 
 4. Run the Streamlit app:
 
+```
 streamlit run streamlit_app.py
+```
 
 5. Use the web UI to record or upload audio and identify songs.
 
@@ -73,19 +77,26 @@ To commit and push your changes to the remote repository using the terminal on C
 
 1. Check the current status of changed files:
 
+```
 git status
+```
 
 2. Stage all changes for commit:
 
+```
 git add
+```
 
 3. Commit the changes with a meaningful message:
 
+```
 git commit -m "From Codespaces"
-
+```
 4. Push the committed changes to the remote branch (e.g., `main`):
 
+```
 git push origin main
+```
 
 ---
 
