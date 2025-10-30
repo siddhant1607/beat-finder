@@ -1,10 +1,6 @@
-import librosa
 import numpy as np
 import scipy.signal
-from collections import defaultdict
-import os
-import pickle
-import re
+import librosa
 
 def lowpass_filter(y, sr, cutoff=5000.0):
     nyq = sr / 2
@@ -44,7 +40,9 @@ def generate_pair_hashes(peaks, fan_value=5):
             if i + j < len(peaks):
                 t2, f2 = peaks[i + j]
                 delta_t = t2 - t1
-                if 0 <= delta_t < (1 << 14):
-                    h = create_address(f1, f2, delta_t)
+                # Quantize delta_t to integer in range to avoid noise
+                quant_delta_t = int(delta_t * 100)  # for example, 10ms resolution
+                if 0 <= quant_delta_t < (1 << 14):
+                    h = create_address(f1, f2, quant_delta_t)
                     hashes.append((h, t1))
     return hashes
