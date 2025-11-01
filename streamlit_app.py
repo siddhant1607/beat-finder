@@ -41,6 +41,8 @@ def get_song_info(song_id, client_id, client_secret, cache={}):
 
 if audio_bytes is not None:
     y, sr = sf.read(audio_bytes)
+    max_samples = sr * 10
+    y = y[:max_samples]  # limit to first 10 seconds
 
     S_mag = process_segment(y, sr)
     peaks = extract_peaks_bandwise(S_mag)
@@ -60,18 +62,30 @@ if audio_bytes is not None:
                 offset_diffs[song][offset_diff] += 1
 
         best_matches = {}
+        total_sample_hashes = len(pair_hashes)
+
         for song, offsets in offset_diffs.items():
             best_offset, best_count = max(offsets.items(), key=lambda x: x[1])
-            best_matches[song] = best_count
+            total_song_hashes = sum(offsets.values())
+
+            confidence = best_count / total_sample_hashes if total_sample_hashes > 0 else 0
+            coverage = total_song_hashes / total_sample_hashes if total_sample_hashes > 0 else 0
+
+            if confidence + coverage > 0:
+                final_score = 2 * confidence * coverage / (confidence + coverage)
+            else:
+                final_score = 0
+
+            best_matches[song] = (best_count, final_score)
 
         threshold = 10
-        filtered = {k: v for k, v in best_matches.items() if v >= threshold}
+        filtered = {k: v for k, v in best_matches.items() if v[0] >= threshold}
 
         if filtered:
-            top5 = sorted(filtered.items(), key=lambda x: x[1], reverse=True)[:5]
-            total_matches = sum(count for _, count in top5)
+            top5 = sorted(filtered.items(), key=lambda x: x[1][0], reverse=True)[:5]
+            total_matches = sum(count for _, (count, _) in top5)
             st.write("Top matches:")
-            for i, (song_id, count) in enumerate(top5, 1):
+            for i, (song_id, (count, final_score)) in enumerate(top5, 1):
                 percent = (count / total_matches) * 100 if total_matches > 0 else 0
                 track = get_song_info(song_id, st.secrets["CLIENT_ID"], st.secrets["CLIENT_SECRET"])
 
@@ -84,7 +98,8 @@ if audio_bytes is not None:
                         st.markdown(f"### {i}. {track['title']} - {track['artist']}")
 
                 st.write(f"Matching hashes: {count}")
-                st.write(f"Match confidence: {percent:.1f}%")
+                st.write(f"Harmonic confidence score: {final_score:.2%}")
+                st.write(f"Match percentage: {percent:.1f}%")
                 if track and 'album' in track and 'images' in track['album']:
                     img_url = track['album']['images'][0]['url']
                     st.image(img_url, width=150)
