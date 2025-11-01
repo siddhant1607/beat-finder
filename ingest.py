@@ -3,6 +3,7 @@ import re
 import pickle
 from collections import defaultdict
 import librosa
+import numpy as np
 
 from fingerprinting import process_segment, extract_peaks_bandwise, generate_pair_hashes
 from spotify_util import get_spotify_tracks
@@ -59,7 +60,13 @@ def process_playlist(playlist_url, client_id, client_secret):
                 break
         else:
             print(f"Processing '{song_id}'")
-            y, sr = librosa.load(audio_path, sr=16000)
+            try:
+                y, sr = librosa.load(audio_path, sr=16000)
+                y = np.nan_to_num(y)  # sanitize audio buffer replacing NaN, inf with zeros
+            except Exception as e:
+                print(f"Failed to load '{audio_path}': {e}")
+                continue  # skip this song and move to the next
+
             S_mag = process_segment(y, sr)
             peaks = extract_peaks_bandwise(S_mag)
             pair_hashes = generate_pair_hashes(peaks)
@@ -72,7 +79,6 @@ def process_playlist(playlist_url, client_id, client_secret):
 
     save_fingerprint_db(FINGERPRINT_DB_PATH, fingerprint_db)
     print("\nAll tracks processed.")
-
 
 client_id = os.getenv("CLIENT_ID")
 client_secret = os.getenv("CLIENT_SECRET")
