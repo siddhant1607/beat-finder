@@ -7,7 +7,6 @@ import librosa
 from fingerprinting import process_segment, extract_peaks_bandwise, generate_pair_hashes
 from spotify_util import get_spotify_tracks
 
-
 AUDIO_FOLDER = "SongDB"
 FINGERPRINT_DB_PATH = "fingerprint_db.pkl"
 
@@ -20,7 +19,6 @@ def load_fingerprint_db(db_path):
         fingerprint_db = defaultdict(list)
         print("Creating new fingerprint database.")
     return fingerprint_db
-
 
 def save_fingerprint_db(db_path, fingerprint_db):
     with open(db_path, "wb") as f:
@@ -44,6 +42,11 @@ def process_playlist(playlist_url, client_id, client_secret):
         title = track.get('title', '')
         artist = track.get('artist', '')
         song_id = generate_song_id(title, artist)
+
+        if already_fingerprinted(song_id, fingerprint_db):
+            print(f"Skipping already fingerprinted song: {song_id}")
+            continue
+
         audio_filename = f"{song_id}.mp3"
         audio_path = os.path.join(AUDIO_FOLDER, audio_filename)
 
@@ -69,6 +72,7 @@ def process_playlist(playlist_url, client_id, client_secret):
 
     save_fingerprint_db(FINGERPRINT_DB_PATH, fingerprint_db)
     print("\nAll tracks processed.")
+
 
 client_id = os.getenv("CLIENT_ID")
 client_secret = os.getenv("CLIENT_SECRET")
