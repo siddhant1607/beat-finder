@@ -7,49 +7,13 @@ from collections import defaultdict
 import pickle
 import re
 import os
-import requests
 
 from fingerprinting import process_segment, extract_peaks_bandwise, generate_pair_hashes
 from spotify_util import get_spotify_tracks  # to get album art & spotify link
 
 LOCAL_DB_PATH = "fingerprint_db.pkl"  # in current directory
-GOOGLE_DRIVE_FILE_ID = ""
-GOOGLE_DRIVE_URL = f"https://drive.google.com/uc?export=download&id={GOOGLE_DRIVE_FILE_ID}"
-
-def get_confirm_token(response):
-    for key, value in response.cookies.items():
-        if key.startswith('download_warning'):
-            return value
-    return None
-
-def save_response_content(response, destination):
-    CHUNK_SIZE = 32768
-    with open(destination, "wb") as f:
-        for chunk in response.iter_content(CHUNK_SIZE):
-            if chunk:  # filter out keep-alive new chunks
-                f.write(chunk)
-
-def download_file_from_google_drive(id, destination):
-    URL = "https://docs.google.com/uc?export=download"
-    session = requests.Session()
-    response = session.get(URL, params={'id': id}, stream=True)
-    token = get_confirm_token(response)
-    if token:
-        params = {'id': id, 'confirm': token}
-        response = session.get(URL, params=params, stream=True)
-    save_response_content(response, destination)
-    st.write("Downloaded fingerprint database from Google Drive.")
-
-def download_fingerprint_db():
-    directory = os.path.dirname(LOCAL_DB_PATH)
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-    download_file_from_google_drive(GOOGLE_DRIVE_FILE_ID, LOCAL_DB_PATH)
 
 def load_fingerprint_db():
-    if not os.path.exists(LOCAL_DB_PATH):
-        st.write("Fingerprint DB not present locally, downloading...")
-        download_fingerprint_db()
     with open(LOCAL_DB_PATH, "rb") as f:
         return pickle.load(f)
 
@@ -128,4 +92,3 @@ if audio_bytes is not None:
                     st.markdown("</div>", unsafe_allow_html=True)
         else:
             st.write("No matches found above threshold.")
-
