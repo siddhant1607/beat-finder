@@ -19,11 +19,10 @@ def load_fingerprint_db():
 
 fingerprint_db = load_fingerprint_db()
 
-st.title("🎤 BeatFinder Demo")
+st.title("🎤 BeatFinder")
 st.write("Record audio and try to recognize it from the song database!")
 
-# Audio input
-audio_bytes = st.audio_input("Record a 10s audio sample (or upload WAV)", sample_rate=16000)
+audio_bytes = st.audio_input("Record a 10s audio sample", sample_rate=16000)
 
 def get_song_info(song_id, client_id, client_secret, cache={}):
     if song_id in cache:
@@ -42,7 +41,7 @@ def get_song_info(song_id, client_id, client_secret, cache={}):
 if audio_bytes is not None:
     y, sr = sf.read(audio_bytes)
     max_samples = sr * 10
-    y = y[:max_samples]  # limit to first 10 seconds
+    y = y[:max_samples]
 
     S_mag = process_segment(y, sr)
     peaks = extract_peaks_bandwise(S_mag)
@@ -62,31 +61,39 @@ if audio_bytes is not None:
                 offset_diffs[song][offset_diff] += 1
 
         best_matches = {}
-        total_sample_hashes = len(pair_hashes)
-
         for song, offsets in offset_diffs.items():
             best_offset, best_count = max(offsets.items(), key=lambda x: x[1])
-            total_song_hashes = sum(offsets.values())
+            best_matches[song] = best_count
 
-            confidence = best_count / total_sample_hashes if total_sample_hashes > 0 else 0
-            coverage = total_song_hashes / total_sample_hashes if total_sample_hashes > 0 else 0
-
-            if confidence + coverage > 0:
-                final_score = 2 * confidence * coverage / (confidence + coverage)
-            else:
-                final_score = 0
-
-            best_matches[song] = (best_count, final_score)
-
-        threshold = 10
-        filtered = {k: v for k, v in best_matches.items() if v[0] >= threshold}
+        # Use absolute match counts for confidence
+        threshold = 299
+        filtered = {k: v for k, v in best_matches.items() if v >= threshold}
 
         if filtered:
-            top5 = sorted(filtered.items(), key=lambda x: x[1][0], reverse=True)[:5]
-            total_matches = sum(count for _, (count, _) in top5)
+            top_matches = sorted(filtered.items(), key=lambda x: x[1], reverse=True)[:3]
             st.write("Top matches:")
-            for i, (song_id, (count, final_score)) in enumerate(top5, 1):
-                percent = (count / total_matches) * 100 if total_matches > 0 else 0
+
+            match_counts = [count for _, count in top_matches]
+
+            # Check for multiple strong matches (both above 1000 and close counts)
+            multiple_strong_condition = False
+            if len(match_counts) > 1:
+                if match_counts[0] >= 1000 and match_counts[1] >= 1000:
+                    diff = abs(match_counts[0] - match_counts[1])
+                    if diff < 0.1 * match_counts[0]:  # within 10%
+                        multiple_strong_condition = True
+                        st.warning("⚠️ Multiple strong matches detected. Audio Sample may contain mixed sources or noise.")
+
+            for i, (song_id, count) in enumerate(top_matches, 1):
+                # Confidence categories based on absolute hash counts
+                if count >= 1000:
+                    confidence_label = "High Confidence"
+                elif 500 <= count < 1000:
+                    confidence_label = "Medium Confidence"
+                elif 300 <= count < 500:
+                    confidence_label = "Low Confidence"
+
+                percent = (count / sum(match_counts)) * 100 if sum(match_counts) > 0 else 0
                 track = get_song_info(song_id, st.secrets["CLIENT_ID"], st.secrets["CLIENT_SECRET"])
 
                 # Highlight top song
@@ -98,13 +105,14 @@ if audio_bytes is not None:
                         st.markdown(f"### {i}. {track['title']} - {track['artist']}")
 
                 st.write(f"Matching hashes: {count}")
-                st.write(f"Harmonic confidence score: {final_score:.2%}")
+                st.write(f"Match Confidence: {confidence_label}")
                 st.write(f"Match percentage: {percent:.1f}%")
                 if track and 'album' in track and 'images' in track['album']:
                     img_url = track['album']['images'][0]['url']
                     st.image(img_url, width=150)
                 if track and 'external_urls' in track and 'spotify' in track['external_urls']:
-                    st.markdown("Listen on Spotify")
+                    url = track['external_urls']['spotify']
+                    st.markdown(f"[Listen on Spotify]({url})", unsafe_allow_html=True)
 
                 if i == 1:
                     st.markdown("</div>", unsafe_allow_html=True)
