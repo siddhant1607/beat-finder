@@ -3,7 +3,7 @@ import soundfile as sf
 import io
 import numpy as np
 import librosa
-from collections import defaultdict
+from collections import defaultdict, Counter
 import pickle
 import re
 import os
@@ -48,10 +48,13 @@ if audio_bytes is not None:
     st.write(f"Fingerprinted {len(pair_hashes)} pairs.")
 
     if st.button("Find best match"):
-        score = defaultdict(int)
-        offset_diffs = defaultdict(lambda: defaultdict(int))
+        offset_diffs = defaultdict(Counter)
+        hash_cache = {}
+
         for h, t in pair_hashes:
-            entries = fingerprint_db.get(h, [])
+            if h not in hash_cache:
+                hash_cache[h] = fingerprint_db.get(h, [])
+            entries = hash_cache[h]
             for song, song_time in entries:
                 offset_diff = round(song_time - t, 2)
                 offset_diffs[song][offset_diff] += 1
