@@ -2,7 +2,7 @@ import os
 import pickle
 from collections import defaultdict
 
-FINGERPRINT_DB_PATH = "fingerprint_db.pkl"
+FINGERPRINT_DB_PATH = ".streamlitignore/fingerprint_db.pkl"
 
 def load_fingerprint_db(db_path):
     if os.path.exists(db_path):

@@ -9,7 +9,7 @@ from fingerprinting import process_segment, extract_peaks_bandwise, generate_pai
 from spotify_util import get_spotify_tracks
 
 AUDIO_FOLDER = "SongDB"
-FINGERPRINT_DB_PATH = "fingerprint_db.pkl"
+FINGERPRINT_DB_PATH = ".streamlitignore/fingerprint_db.pkl"
 
 def load_fingerprint_db(db_path):
     if os.path.exists(db_path):
