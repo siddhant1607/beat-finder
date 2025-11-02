@@ -32,7 +32,7 @@ def get_song_info(song_id, client_id, client_secret, cache={}):
     for track in tracks:
         title = track.get('title', '')
         artist = track.get('artist', '')
-        # Fixed regex: \W+ to remove non-word characters
+        # Correct regex to remove non-word characters
         generated_id = re.sub(r'\W+', '', title.lower()) + "" + re.sub(r'\W+', '', artist.lower())
         if generated_id == song_id:
             cache[song_id] = track
@@ -104,21 +104,38 @@ if audio_bytes is not None:
                 track = get_song_info(song_id, client_id, client_secret)
 
                 if i == 1:
-                    st.markdown(f"<div style='background-color:#FFD700; padding:10px; border-radius:5px;'>", unsafe_allow_html=True)
+                    st.markdown(
+                        f"<div style='background-color:#FFD700; padding:10px; border-radius:5px;'>",
+                        unsafe_allow_html=True,
+                    )
 
+                # Always show the detected song_id below the track name
                 if track:
                     st.markdown(f"### {i}. {track['title']} - {track['artist']}")
+                    st.markdown(f"<i style='font-size:small;'>ID: {song_id}</i>", unsafe_allow_html=True)
                 else:
                     st.markdown(f"### {i}. Unknown Track")
+                    st.markdown(f"<i style='font-size:small;'>ID: {song_id}</i>", unsafe_allow_html=True)
 
                 st.write(f"Matching hashes: {count}")
                 st.write(f"Match Confidence: {confidence_label}")
                 st.write(f"Match percentage: {percent:.1f}%")
-                if track and 'album' in track and 'images' in track['album']:
-                    img_url = track['album']['images'][0]['url']
+                # Show album art if present
+                if (
+                    track
+                    and "album" in track
+                    and "images" in track["album"]
+                    and track["album"]["images"]
+                ):
+                    img_url = track["album"]["images"][0]["url"]
                     st.image(img_url, width=150)
-                if track and 'external_urls' in track and 'spotify' in track['external_urls']:
-                    url = track['external_urls']['spotify']
+                # Show Spotify link if present
+                if (
+                    track
+                    and "external_urls" in track
+                    and "spotify" in track["external_urls"]
+                ):
+                    url = track["external_urls"]["spotify"]
                     st.markdown(f"[Listen on Spotify]({url})", unsafe_allow_html=True)
 
                 if i == 1:
