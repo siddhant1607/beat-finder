@@ -7,9 +7,14 @@ import librosa
 from fingerprinting import process_segment, extract_peaks_bandwise, generate_pair_hashes
 from spotify_util import get_spotify_tracks
 
-
 AUDIO_FOLDER = "SongDB"
 FINGERPRINT_DB_PATH = "fingerprint_db.pkl"
+
+def sanitize(text):
+    return re.sub(r'\W+', '_', text.lower())
+
+def generate_song_id(title, artist):
+    return f"{sanitize(title)}__{sanitize(artist)}"
 
 def load_fingerprint_db(db_path):
     if os.path.exists(db_path):
@@ -21,17 +26,10 @@ def load_fingerprint_db(db_path):
         print("Creating new fingerprint database.")
     return fingerprint_db
 
-
 def save_fingerprint_db(db_path, fingerprint_db):
     with open(db_path, "wb") as f:
         pickle.dump(fingerprint_db, f)
     print(f"Fingerprint database saved: {len(fingerprint_db)} unique hashes.")
-
-def sanitize(text):
-    return re.sub(r'\W+', '_', text.lower())
-
-def generate_song_id(title, artist):
-    return f"{sanitize(title)}__{sanitize(artist)}"
 
 def already_fingerprinted(song_id, fingerprint_db):
     return any(entry[0] == song_id for entries in fingerprint_db.values() for entry in entries)
