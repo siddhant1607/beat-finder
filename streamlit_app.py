@@ -1,6 +1,3 @@
-# streamlit run streamlit_app.py
-
-
 import streamlit as st
 import soundfile as sf
 import io
@@ -35,7 +32,8 @@ def get_song_info(song_id, client_id, client_secret, cache={}):
     for track in tracks:
         title = track.get('title', '')
         artist = track.get('artist', '')
-        generated_id = re.sub(r'W+', '', title.lower()) + "" + re.sub(r'W+', '', artist.lower())
+        # Fixed regex: \W+ to remove non-word characters
+        generated_id = re.sub(r'\W+', '', title.lower()) + "" + re.sub(r'\W+', '', artist.lower())
         if generated_id == song_id:
             cache[song_id] = track
             return track
@@ -92,6 +90,8 @@ if audio_bytes is not None:
                     confidence_label = "Medium Confidence"
                 elif 500 <= count < 750:
                     confidence_label = "Low Confidence"
+                else:
+                    confidence_label = "Unknown Confidence"
 
                 percent = (count / sum(match_counts)) * 100 if sum(match_counts) > 0 else 0
                 try:
@@ -105,10 +105,11 @@ if audio_bytes is not None:
 
                 if i == 1:
                     st.markdown(f"<div style='background-color:#FFD700; padding:10px; border-radius:5px;'>", unsafe_allow_html=True)
-                    st.markdown(f"### *{i}. {track['title']} - {track['artist']}*")
+
+                if track:
+                    st.markdown(f"### {i}. {track['title']} - {track['artist']}")
                 else:
-                    if track:
-                        st.markdown(f"### {i}. {track['title']} - {track['artist']}")
+                    st.markdown(f"### {i}. Unknown Track")
 
                 st.write(f"Matching hashes: {count}")
                 st.write(f"Match Confidence: {confidence_label}")
