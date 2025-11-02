@@ -25,7 +25,7 @@ def generate_spectrogram(audio_path, sr=44100, n_fft=4096, hop_length=1024):
 
 
 # --- II. Feature Extraction: Peak Detection (Section II.B) ---
-def find_spectrogram_peaks(spectrogram_db, structure_size=(3, 3), threshold_db=-80):
+def find_spectrogram_peaks(spectrogram_db, structure_size=(20, 20), threshold_db=-40):
 
     is_local_max = ndi.maximum_filter(spectrogram_db, size=structure_size) == spectrogram_db
     
