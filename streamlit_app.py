@@ -30,13 +30,9 @@ def get_song_info(song_id, client_id, client_secret, cache={}):
     playlist_url = "https://open.spotify.com/playlist/7AFzTreiVAZpYU8wYW3fp9?si=AvcUBT7ZTfyKhMBMepcmKw"
     tracks = get_spotify_tracks(playlist_url, client_id, client_secret)
     for track in tracks:
-        title = track.get('title', '')
-        artist = track.get('artist', '')
-        # Correct regex to remove non-word characters
-        generated_id = re.sub(r'\W+', '', title.lower()) + "" + re.sub(r'\W+', '', artist.lower())
-        if generated_id == song_id:
-            cache[song_id] = track
-            return track
+    if track['id'] == song_id:
+        cache[song_id] = track
+        return track
     return None
 
 if audio_bytes is not None:
