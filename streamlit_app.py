@@ -7,8 +7,9 @@ from collections import defaultdict
 import pickle
 import re
 import os
+from sklearn.cluster import MiniBatchKMeans
 
-from fingerprinting import process_segment, extract_peaks_bandwise, generate_pair_hashes
+import fingerprinting
 from spotify_util import get_spotify_tracks  # to get album art & spotify link
 
 LOCAL_DB_PATH = "fingerprint_db.pkl"  # in current directory
@@ -40,29 +41,26 @@ def get_song_info(song_id, client_id, client_secret, cache={}):
     return None
 
 if audio_bytes is not None:
-    y, sr = sf.read(audio_bytes)
 
-    S_mag = process_segment(y, sr)
-    peaks = extract_peaks_bandwise(S_mag)
-    pair_hashes = generate_pair_hashes(peaks)
-    st.write(f"Fingerprinted {len(pair_hashes)} pairs.")
+    hashes = fingerprinting.create_audio_fingerprint(audio_bytes)
 
     if st.button("Find best match"):
         score = defaultdict(int)
         offset_diffs = defaultdict(lambda: defaultdict(int))
-        for h, t in pair_hashes:
+        for h, t in hashes:
             entries = fingerprint_db.get(h, [])
             for song, song_time in entries:
                 offset_diff = round(song_time - t, 2)
                 offset_diffs[song][offset_diff] += 1
 
-        best_matches = {}
-        for song, offsets in offset_diffs.items():
-            best_offset, best_count = max(offsets.items(), key=lambda x: x[1])
-            best_matches[song] = best_count
+        clustered_matches = {}
+        # Iterate over each song and its offset difference counts
+        for song, offset_counts in offset_diffs.items():
+            best_cluster_count = fingerprinting.cluster_time_stamps(offset_counts, n_clusters=2)
+            clustered_matches[song] = best_cluster_count
 
-        threshold = 10
-        filtered = {k: v for k, v in best_matches.items() if v >= threshold}
+        threshold = 1
+        filtered = {k: v for k, v in clustered_matches.items() if v >= threshold}
 
         if filtered:
             top5 = sorted(filtered.items(), key=lambda x: x[1], reverse=True)[:5]

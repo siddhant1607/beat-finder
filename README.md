@@ -2,6 +2,8 @@
 
 BeatFinder is a music recognition web app built with Streamlit. It allows you to record or upload a short audio clip and tries to identify the song by matching audio fingerprints against a pre-built song database. The results show the most likely matches along with confidence percentages and Spotify links.
 
+Based on the methodologies described in [S. Patel et al., "Audio Fingerprinting Using Clustering," TENCON 2024 - 2024 IEEE Region 10 Conference (TENCON), Singapore, Singapore, 2024, pp. 1680-1683, doi: 10.1109/TENCON61640.2024.10902849.](https://ieeexplore.ieee.org/document/10902849)
+
 ---
 
 ## Features
