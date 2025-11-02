@@ -5,6 +5,7 @@ import scipy.ndimage as ndi
 from sklearn.cluster import MiniBatchKMeans
 from sklearn.preprocessing import StandardScaler
 
+
 # --- I. Spectrogram Generation (Section II.A) ---
 def generate_spectrogram(audio_path, sr=44100, n_fft=4096, hop_length=1024):
     try:
@@ -12,7 +13,7 @@ def generate_spectrogram(audio_path, sr=44100, n_fft=4096, hop_length=1024):
         x, sr = librosa.load(audio_path, sr=sr)
     except Exception as e:
         print(f"Error loading audio: {e}")
-        return None
+        return None, None, None
 
     S = librosa.stft(x, n_fft=n_fft, hop_length=hop_length, window=scipy.signal.windows.hamming)
     
@@ -21,6 +22,7 @@ def generate_spectrogram(audio_path, sr=44100, n_fft=4096, hop_length=1024):
     S_db = librosa.amplitude_to_db(S_mag, ref=np.max)
     
     return S_db, sr, hop_length
+
 
 # --- II. Feature Extraction: Peak Detection (Section II.B) ---
 def find_spectrogram_peaks(spectrogram_db, structure_size=(3, 3), threshold_db=-80):
@@ -37,7 +39,8 @@ def find_spectrogram_peaks(spectrogram_db, structure_size=(3, 3), threshold_db=-
     
     peaks_m_omega = [(t, f) for f, t in peaks]
 
-    return sorted(peaks_m_omega, key=lambda x: x[0]) # Sort by time index 'm'
+    return sorted(peaks_m_omega, key=lambda x: x[0])  # Sort by time index 'm'
+
 
 # --- III. Hash Generation (Section II.C) ---
 def generate_audio_hashes(peaks, fan_value=10):
@@ -45,11 +48,11 @@ def generate_audio_hashes(peaks, fan_value=10):
     hashes = []
     
     for i in range(len(peaks)):
-        anchor_t, anchor_f = peaks[i] # P_anchor = P(m, omega) [cite: 81]
+        anchor_t, anchor_f = peaks[i]  # P_anchor = P(m, omega)
         
         for j in range(1, fan_value + 1):
             if i + j < len(peaks):
-                target_t, target_f = peaks[i + j] # P_target
+                target_t, target_f = peaks[i + j]  # P_target
                 
                 delta_t = target_t - anchor_t
                 
@@ -61,6 +64,7 @@ def generate_audio_hashes(peaks, fan_value=10):
                     hashes.append((h, anchor_t))
                     
     return hashes
+
 
 # --- IV. Main Execution and Example ---
 def create_audio_fingerprint(audio_path):
@@ -108,7 +112,8 @@ def cluster_time_stamps(offset_diff_counts, n_clusters=1):
     
     # Ensure n_clusters is not more than the number of unique samples
     n_clusters = min(n_clusters, len(np.unique(standardized_data)))
-    if n_clusters < 1: n_clusters = 1 # Must have at least one cluster
+    if n_clusters < 1: 
+        n_clusters = 1  # Must have at least one cluster
 
     kmeans = MiniBatchKMeans(n_clusters=n_clusters, random_state=0, n_init='auto', batch_size=256)
     kmeans.fit(standardized_data)

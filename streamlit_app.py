@@ -2,29 +2,29 @@ import streamlit as st
 import soundfile as sf
 import io
 import numpy as np
-import librosa
 from collections import defaultdict
 import pickle
 import re
 import os
-from sklearn.cluster import MiniBatchKMeans
 
 import fingerprinting
-from spotify_util import get_spotify_tracks  # to get album art & spotify link
+from spotify_util import get_spotify_tracks
 
-LOCAL_DB_PATH = "fingerprint_db.pkl"  # in current directory
+LOCAL_DB_PATH = "fingerprint_db.pkl"
+
 
 def load_fingerprint_db():
     with open(LOCAL_DB_PATH, "rb") as f:
         return pickle.load(f)
 
+
 fingerprint_db = load_fingerprint_db()
 
-st.title("🎤 BeatFinder Demo")
+st.title("🎤 BeatFinder")
 st.write("Record audio and try to recognize it from the song database!")
 
-# Audio input
-audio_bytes = st.audio_input("Record a 10s audio sample (or upload WAV)", sample_rate=16000)
+audio_bytes = st.audio_input("Record a 10s audio sample", sample_rate=44100)
+
 
 def get_song_info(song_id, client_id, client_secret, cache={}):
     if song_id in cache:
@@ -40,13 +40,21 @@ def get_song_info(song_id, client_id, client_secret, cache={}):
             return track
     return None
 
-if audio_bytes is not None:
 
-    hashes = fingerprinting.create_audio_fingerprint(audio_bytes)
+if audio_bytes is not None:
+    # Save audio bytes to temporary file for fingerprinting
+    temp_audio_path = "temp_query.wav"
+    with open(temp_audio_path, "wb") as f:
+        f.write(audio_bytes.getbuffer())
+    
+    hashes = fingerprinting.create_audio_fingerprint(temp_audio_path)
+    os.remove(temp_audio_path)  # Clean up
+    
+    st.write(f"Fingerprinted {len(hashes)} hashes.")
 
     if st.button("Find best match"):
-        score = defaultdict(int)
         offset_diffs = defaultdict(lambda: defaultdict(int))
+        
         for h, t in hashes:
             entries = fingerprint_db.get(h, [])
             for song, song_time in entries:
@@ -54,23 +62,64 @@ if audio_bytes is not None:
                 offset_diffs[song][offset_diff] += 1
 
         clustered_matches = {}
-        # Iterate over each song and its offset difference counts
+        cluster_info = {}
+        
+        # For each song, find the dominant cluster
         for song, offset_counts in offset_diffs.items():
-            best_cluster_count = fingerprinting.cluster_time_stamps(offset_counts, n_clusters=2)
+            total_matches = sum(offset_counts.values())
+            
+            # Dynamically determine number of clusters based on data distribution
+            # Use more clusters to isolate true matches from noise
+            n_clusters = min(5, max(1, total_matches // 50))
+            
+            best_cluster_count = fingerprinting.cluster_time_stamps(offset_counts, n_clusters=n_clusters)
+            
+            # Calculate cluster quality (ratio of largest cluster to total matches)
+            cluster_quality = best_cluster_count / total_matches if total_matches > 0 else 0
+            
             clustered_matches[song] = best_cluster_count
+            cluster_info[song] = {
+                'total': total_matches,
+                'quality': cluster_quality,
+                'best_cluster': best_cluster_count
+            }
 
-        threshold = 1
-        filtered = {k: v for k, v in clustered_matches.items() if v >= threshold}
+        # Filter by minimum threshold (500 matches in dominant cluster)
+        filtered = {k: v for k, v in clustered_matches.items() if v >= 500}
 
         if filtered:
-            top5 = sorted(filtered.items(), key=lambda x: x[1], reverse=True)[:5]
-            total_matches = sum(count for _, count in top5)
+            top_matches = sorted(filtered.items(), key=lambda x: x[1], reverse=True)[:3]
             st.write("Top matches:")
-            for i, (song_id, count) in enumerate(top5, 1):
-                percent = (count / total_matches) * 100 if total_matches > 0 else 0
-                track = get_song_info(song_id, st.secrets["CLIENT_ID"], st.secrets["CLIENT_SECRET"])
 
-                # Highlight top song
+            match_counts = [count for _, count in top_matches]
+
+            # Check for multiple strong matches
+            if len(match_counts) > 1:
+                if match_counts[0] >= 1000 and match_counts[1] >= 1000:
+                    diff = abs(match_counts[0] - match_counts[1])
+                    if diff < 0.1 * match_counts[0]:
+                        st.warning("⚠️ Multiple strong matches detected. Audio Sample may contain mixed sources or noise.")
+
+            for i, (song_id, count) in enumerate(top_matches, 1):
+                # Confidence labels based on dominant cluster size
+                if count >= 1000:
+                    confidence_label = "High Confidence"
+                elif 750 <= count < 1000:
+                    confidence_label = "Medium Confidence"
+                elif 500 <= count < 750:
+                    confidence_label = "Low Confidence"
+                else:
+                    confidence_label = "Unknown"
+
+                percent = (count / sum(match_counts)) * 100 if sum(match_counts) > 0 else 0
+                quality = cluster_info[song_id]['quality']
+                
+                # Get secrets with fallback
+                client_id = st.secrets["CLIENT_ID"] if "CLIENT_ID" in st.secrets else os.getenv("CLIENT_ID")
+                client_secret = st.secrets["CLIENT_SECRET"] if "CLIENT_SECRET" in st.secrets else os.getenv("CLIENT_SECRET")
+
+                track = get_song_info(song_id, client_id, client_secret)
+
                 if i == 1:
                     st.markdown(f"<div style='background-color:#FFD700; padding:10px; border-radius:5px;'>", unsafe_allow_html=True)
                     st.markdown(f"### **{i}. {track['title']} - {track['artist']}**")
@@ -78,13 +127,18 @@ if audio_bytes is not None:
                     if track:
                         st.markdown(f"### {i}. {track['title']} - {track['artist']}")
 
-                st.write(f"Matching hashes: {count}")
-                st.write(f"Match confidence: {percent:.1f}%")
+                st.write(f"Dominant cluster matches: {count}")
+                st.write(f"Match Confidence: {confidence_label}")
+                st.write(f"Cluster quality: {quality:.1%}")
+                st.write(f"Match percentage: {percent:.1f}%")
+                
                 if track and 'album' in track and 'images' in track['album']:
                     img_url = track['album']['images'][0]['url']
                     st.image(img_url, width=150)
+                    
                 if track and 'external_urls' in track and 'spotify' in track['external_urls']:
-                    st.markdown("Listen on Spotify")
+                    url = track['external_urls']['spotify']
+                    st.markdown(f"[Listen on Spotify]({url})")
 
                 if i == 1:
                     st.markdown("</div>", unsafe_allow_html=True)
