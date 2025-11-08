@@ -62,8 +62,7 @@ def process_playlist(playlist_url, client_id, client_secret):
             for h, t in pair_hashes:
                 fingerprint_db[int(h)].append((song_id, t))
 
-            os.remove(audio_path)
-            print(f"Finished and deleted '{audio_filename}'")
+            print(f"Finished processing '{audio_filename}'")
 
     save_fingerprint_db(FINGERPRINT_DB_PATH, fingerprint_db)
     print("\nAll tracks processed.")
