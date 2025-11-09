@@ -1,4 +1,3 @@
-# To run in local environment - streamlit run streamlit_app.py
 import streamlit as st
 import soundfile as sf
 import io
@@ -12,17 +11,30 @@ import os
 from fingerprinting import process_segment, extract_peaks_bandwise, generate_pair_hashes
 from spotify_util import get_spotify_tracks  # to get album art & spotify link
 
-LOCAL_DB_PATH = "fingerprint_db.pkl"  # in current directory
+LOCAL_DB_PATH = "fingerprint_db_hamming.pkl"  # in current directory
+
 
 @st.cache_resource
 def load_fingerprint_db():
     with open(LOCAL_DB_PATH, "rb") as f:
         return pickle.load(f)
 
+
 fingerprint_db = load_fingerprint_db()
 
 st.title("🎤 BeatFinder")
 st.write("Record audio or upload a file to recognize it from the song database!")
+
+# --- CHANGE: Add testing controls section ---
+with st.expander("🧪 Testing Features (for experimentation only)"):
+    st.warning("These features are for testing only. For normal use, leave at default values!")
+    snr_db = st.slider(
+        "Simulate Noise: SNR (dB) - higher = less noise", min_value=-10, max_value=10, value=10
+    )
+    min_match_thresh = st.number_input(
+        "Detection Threshold", min_value=1, max_value=1000, value=500
+    )
+
 
 # --- CHANGE: Added tabs for different input methods ---
 tab1, tab2 = st.tabs(["Record Audio", "Upload File"])
@@ -37,9 +49,21 @@ with tab1:
 
 with tab2:
     st.write("Upload a WAV or MP3 audio file (max 10 seconds will be processed):")
-    uploaded_file = st.file_uploader("Choose an audio file...", type=['wav', 'mp3'], key="uploader")
+    uploaded_file = st.file_uploader("Choose an audio file...", type=["wav", "mp3"], key="uploader")
     if uploaded_file:
         audio_bytes = uploaded_file.getvalue()
+
+
+def add_noise_to_signal(signal, snr_db):
+    if snr_db >= 40:  # Treat 40dB or more as no noise
+        return signal
+    rms_signal = np.sqrt(np.mean(signal**2))
+    snr_linear = 10 ** (snr_db / 10)
+    rms_noise = rms_signal / np.sqrt(snr_linear)
+    noise = np.random.normal(0, rms_noise, signal.shape[0])
+    noisy_signal = signal + noise
+    return noisy_signal
+
 
 def get_song_info(song_id, client_id, client_secret, cache={}):
     if song_id in cache:
@@ -47,21 +71,25 @@ def get_song_info(song_id, client_id, client_secret, cache={}):
     playlist_url = "https://open.spotify.com/playlist/7AFzTreiVAZpYU8wYW3fp9?si=AvcUBT7ZTfyKhMBMepcmKw"
     tracks = get_spotify_tracks(playlist_url, client_id, client_secret)
     for track in tracks:
-        if track['id'] == song_id:
+        if track["id"] == song_id:
             cache[song_id] = track
             return track
     return None
 
+
 if audio_bytes is not None:
     # Use an in-memory file for soundfile to read
     y, sr = sf.read(io.BytesIO(audio_bytes))
-    
+
     # If stereo, convert to mono by averaging channels
     if y.ndim > 1:
         y = y.mean(axis=1)
-        
+
     max_samples = sr * 10
     y = y[:max_samples]
+
+    # --- Apply noise if requested ---
+    y = add_noise_to_signal(y, snr_db)
 
     S_mag = process_segment(y, sr)
     peaks = extract_peaks_bandwise(S_mag)
@@ -87,8 +115,8 @@ if audio_bytes is not None:
             best_offset, best_count = max(offsets.items(), key=lambda x: x[1])
             best_matches[song] = best_count
 
-        # Exclude matches below a certain threshold
-        filtered = {k: v for k, v in best_matches.items() if v >= 5} # Lowered threshold for testing flexibility
+        # Use adjustable threshold from testing controls
+        filtered = {k: v for k, v in best_matches.items() if v >= min_match_thresh}
 
         if filtered:
             top_matches = sorted(filtered.items(), key=lambda x: x[1], reverse=True)[:3]
@@ -98,15 +126,15 @@ if audio_bytes is not None:
 
             multiple_strong_condition = False
             if len(match_counts) > 1:
-                # Adjusted confidence logic for clarity
                 if match_counts[0] >= 50 and match_counts[1] >= 50:
                     diff = abs(match_counts[0] - match_counts[1])
                     if diff < 0.2 * match_counts[0]:  # within 20%
                         multiple_strong_condition = True
-                        st.warning("⚠ Multiple strong matches detected. The audio sample may contain mixed sources or be ambiguous.")
+                        st.warning(
+                            "⚠ Multiple strong matches detected. The audio sample may contain mixed sources or be ambiguous."
+                        )
 
             for i, (song_id, count) in enumerate(top_matches, 1):
-                # Adjusted confidence labels
                 if count >= 100:
                     confidence_label = "Very High Confidence"
                 elif count >= 50:
@@ -142,16 +170,17 @@ if audio_bytes is not None:
                 st.write(f"Matching hashes: {count}")
                 st.write(f"Match Confidence: {confidence_label}")
                 st.write(f"Match percentage: {percent:.1f}%")
-                
-                if (track and "album" in track and "images" in track["album"] and track["album"]["images"]):
+
+                if track and "album" in track and "images" in track["album"] and track["album"]["images"]:
                     img_url = track["album"]["images"][0]["url"]
                     st.image(img_url, width=150)
 
-                if (track and "external_urls" in track and "spotify" in track["external_urls"]):
+                if track and "external_urls" in track and "spotify" in track["external_urls"]:
                     url = track["external_urls"]["spotify"]
                     st.markdown(f"[Listen on Spotify]({url})", unsafe_allow_html=True)
 
                 if i == 1:
                     st.markdown("</div>", unsafe_allow_html=True)
+
         else:
             st.write("No matches found above the threshold.")
