@@ -25,7 +25,7 @@ fingerprint_db = load_fingerprint_db()
 st.title("🎤 BeatFinder")
 st.write("Record audio or upload a file to recognize it from the song database!")
 
-# --- CHANGE: Add testing controls section ---
+# --- Testing controls ---
 with st.expander("🧪 Testing Features (for experimentation only)"):
     st.warning("These features are for testing only. For normal use, leave at default values!")
     snr_db = st.slider(
@@ -35,8 +35,7 @@ with st.expander("🧪 Testing Features (for experimentation only)"):
         "Detection Threshold", min_value=1, max_value=1000, value=500
     )
 
-
-# --- CHANGE: Added tabs for different input methods ---
+# --- Input tabs ---
 tab1, tab2 = st.tabs(["Record Audio", "Upload File"])
 
 audio_bytes = None
@@ -78,8 +77,18 @@ def get_song_info(song_id, client_id, client_secret, cache={}):
 
 
 if audio_bytes is not None:
-    # Use an in-memory file for soundfile to read
-    y, sr = sf.read(io.BytesIO(audio_bytes))
+    # Properly wrap bytes to BytesIO only when needed
+    if isinstance(audio_bytes, (bytes, bytearray)):
+        audio_stream = io.BytesIO(audio_bytes)
+    else:
+        audio_stream = audio_bytes
+
+    y, sr = sf.read(audio_stream)
+
+    # Resample to 16kHz if needed
+    if sr != 16000:
+        y = librosa.resample(y, orig_sr=sr, target_sr=16000)
+        sr = 16000
 
     # If stereo, convert to mono by averaging channels
     if y.ndim > 1:
@@ -88,7 +97,7 @@ if audio_bytes is not None:
     max_samples = sr * 10
     y = y[:max_samples]
 
-    # --- Apply noise if requested ---
+    # Apply noise if requested
     y = add_noise_to_signal(y, snr_db)
 
     S_mag = process_segment(y, sr)
@@ -115,7 +124,6 @@ if audio_bytes is not None:
             best_offset, best_count = max(offsets.items(), key=lambda x: x[1])
             best_matches[song] = best_count
 
-        # Use adjustable threshold from testing controls
         filtered = {k: v for k, v in best_matches.items() if v >= min_match_thresh}
 
         if filtered:
