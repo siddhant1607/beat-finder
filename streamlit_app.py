@@ -1,4 +1,4 @@
-# To run in local environment - streamlit run streamlit_app.py
+# streamlit run streamlit_app.py
 import streamlit as st
 import soundfile as sf
 import io
@@ -42,7 +42,7 @@ if audio_bytes is not None:
     y = y[:max_samples]
 
     S_mag = process_segment(y, sr)
-    peaks = extract_peaks_bandwise(S_mag)
+    peaks = extract_peaks_bandwise(S_mag,sr)
     pair_hashes = generate_pair_hashes(peaks)
     st.write(f"Fingerprinted {len(pair_hashes)} pairs.")
 
@@ -71,14 +71,6 @@ if audio_bytes is not None:
             st.write("Top matches:")
 
             match_counts = [count for _, count in top_matches]
-
-            multiple_strong_condition = False
-            if len(match_counts) > 1:
-                if match_counts[0] >= 1000 and match_counts[1] >= 1000:
-                    diff = abs(match_counts[0] - match_counts[1])
-                    if diff < 0.1 * match_counts[0]:  # within 10%
-                        multiple_strong_condition = True
-                        st.warning("⚠ Multiple strong matches detected. Audio Sample may contain mixed sources or noise.")
 
             for i, (song_id, count) in enumerate(top_matches, 1):
                 if count >= 1000:

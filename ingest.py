@@ -56,7 +56,7 @@ def process_playlist(playlist_url, client_id, client_secret):
             print(f"Processing '{song_id}'")
             y, sr = librosa.load(audio_path, sr=16000)
             S_mag = process_segment(y, sr)
-            peaks = extract_peaks_bandwise(S_mag)
+            peaks = extract_peaks_bandwise(S_mag,sr)
             pair_hashes = generate_pair_hashes(peaks)
 
             for h, t in pair_hashes:
